@@ -1,38 +1,136 @@
-.App {
-  text-align: center;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+:root {
+  --primary: #E50914;
+  --bg: #05070a;
+  --card-bg: #11141b;
+  --sk-base: #1e293b;
+  --sk-shine: #334155;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; overflow-x: hidden; }
+
+/* --- AUTH SCREENS --- */
+.auth-container {
+  height: 100vh;
+  width: 100vw;
+  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url('https://assets.nflxext.com/ffe/siteui/vlv3/f841d4c7-10e1-40af-bcae-07a3f8dc141a/f6d7434e-d6de-4185-a6d4-c77a2d08737b/US-en-20220502-popsignuptwoweeks-perspective_alpha_website_medium.jpg');
+  background-size: cover;
+  display: flex; justify-content: center; align-items: center;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.auth-box {
+  background: rgba(0, 0, 0, 0.75);
+  padding: 60px 68px 40px;
+  border-radius: 4px;
+  width: 100%;
+  max-width: 450px;
+  min-height: 500px;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+.auth-brand { font-size: 2rem; font-weight: 800; color: var(--primary); margin-bottom: 2rem; display: flex; align-items: center; gap: 10px; }
+.auth-box h2 { font-size: 2rem; margin-bottom: 28px; font-weight: 700; }
+
+.auth-box input {
+  background: #333;
+  border-radius: 4px;
+  border: 0;
+  color: #fff;
+  height: 50px;
+  line-height: 50px;
+  padding: 0 20px;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.auth-btn {
+  background-color: var(--primary);
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 24px 0 12px;
+  padding: 16px;
+  width: 100%;
+  border: none;
   color: white;
+  cursor: pointer;
 }
 
-.App-link {
-  color: #61dafb;
-}
+.auth-switch { color: #737373; font-size: 16px; margin-top: 16px; }
+.auth-switch span { color: #fff; cursor: pointer; }
+.auth-switch span:hover { text-decoration: underline; }
+.auth-error { background: #e87c03; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* --- NAVBAR USER MENU --- */
+.nav-user-menu { position: relative; cursor: pointer; }
+.profile-avatar img { width: 32px; height: 32px; border-radius: 4px; }
+.user-dropdown {
+  position: absolute; top: 40px; right: 0; background: #000;
+  border: 1px solid #333; width: 150px; padding: 10px 0;
 }
+.dropdown-item { padding: 10px 15px; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #ccc; }
+.dropdown-item:hover { background: #222; color: #fff; }
+
+/* --- SCROLL TO TOP --- */
+.scroll-top {
+  position: fixed; bottom: 30px; right: 30px;
+  background: var(--primary); color: white;
+  width: 50px; height: 50px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; cursor: pointer;
+  opacity: 0; visibility: hidden; transition: 0.3s;
+  z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+.scroll-top.show { opacity: 1; visibility: visible; }
+.scroll-top:hover { transform: translateY(-5px); }
+
+/* --- EXISTING STYLES --- */
+/* (Keep all previous styles for Navbar, Hero, Cards, Ranking, Details, Skeleton) */
+.navbar-new { position: fixed; top: 0; width: 100%; z-index: 1000; padding: 1.2rem 5%; transition: 0.4s; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
+.navbar-new.scrolled { padding: 0.8rem 5%; background: rgba(5, 7, 10, 0.95); backdrop-filter: blur(20px); }
+.nav-content { display: flex; justify-content: space-between; align-items: center; }
+.nav-left, .nav-right { display: flex; align-items: center; gap: 2rem; }
+.brand { font-weight: 800; font-size: 1.5rem; color: var(--primary); cursor: pointer; display: flex; gap: 8px; }
+.nav-menu { list-style: none; display: flex; gap: 1.5rem; color: #ccc; }
+.nav-menu li:hover { color: #fff; cursor: pointer; }
+.search-box { background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 20px; display: flex; align-items: center; width: 220px; }
+.search-box input { background: transparent; border: none; color: #fff; margin-left: 10px; width: 100%; outline: none; }
+
+.skeleton { background: var(--sk-base); background-image: linear-gradient(90deg, var(--sk-base), var(--sk-shine), var(--sk-base)); background-size: 200%; animation: shimmer 1.5s infinite linear; border-radius: 8px; }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.hero-skeleton { height: 80vh; }
+.card-skeleton { min-width: 200px; height: 300px; }
+
+.hero-wrap { height: 85vh; position: relative; }
+.hero-image { width: 100%; height: 100%; object-fit: cover; }
+.hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--bg) 10%, transparent 50%); display: flex; align-items: center; padding: 0 5%; }
+.hero-text h1 { font-size: 4rem; margin-bottom: 20px; }
+.play-btn { background: #fff; color: #000; padding: 12px 30px; border-radius: 4px; font-weight: 800; border: none; cursor: pointer; }
+.list-btn { background: rgba(255,255,255,0.2); color: #fff; padding: 12px 30px; border-radius: 4px; border: none; cursor: pointer; }
+
+.carousel-row { padding: 2rem 5%; }
+.carousel-track { display: flex; gap: 1.5rem; overflow-x: auto; scrollbar-width: none; padding: 10px 0; }
+.m-card { min-width: 200px; height: 300px; border-radius: 8px; overflow: hidden; position: relative; transition: 0.3s; cursor: pointer; }
+.m-card img { width: 100%; height: 100%; object-fit: cover; }
+.m-card:hover { transform: scale(1.05); }
+
+.ranking-card-wrapper { display: flex; align-items: flex-end; position: relative; min-width: 280px; height: 300px; cursor: pointer; }
+.ranking-number { font-size: 11rem; font-weight: 900; color: var(--bg); -webkit-text-stroke: 3px rgba(255,255,255,0.2); position: absolute; left: -10px; bottom: -20px; z-index: 1; }
+.ranking-card-wrapper:hover .ranking-number { -webkit-text-stroke: 3px var(--primary); }
+.ranking-card-wrapper .m-card { margin-left: 70px; z-index: 2; width: 180px; height: 260px; }
+
+.details-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
+.details-window { width: 900px; background: #181818; border-radius: 12px; overflow: hidden; position: relative; }
+.details-hero { height: 400px; position: relative; }
+.details-bg { width: 100%; height: 100%; object-fit: cover; }
+.details-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, #181818, transparent); display: flex; flex-direction: column; justify-content: flex-end; padding: 40px; }
+.close-details { position: absolute; top: 20px; right: 20px; z-index: 10; background: rgba(0,0,0,0.5); border: none; color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
+.details-body { padding: 40px; }
+.details-actions { display: flex; gap: 15px; margin-top: 20px; }
+.play-btn-large { background: #fff; color: #000; padding: 12px 30px; border-radius: 4px; font-weight: 800; border: none; cursor: pointer; }
+.circ-action { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #555; background: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+.search-section { padding: 8rem 5% 4rem; }
+.search-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2rem; }
+.footer-new { padding: 4rem 5%; background: #020202; border-top: 1px solid #111; text-align: center; color: #555; }
+.f-social { display: flex; justify-content: center; gap: 2rem; margin: 1.5rem 0; font-size: 1.5rem; }
