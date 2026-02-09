@@ -1,407 +1,434 @@
-import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useMemo } from 'react';
 import { 
-  FaSearch, FaPlay, FaHeart, FaFilm, FaTimes, 
-  FaChevronLeft, FaChevronRight, FaPlus, FaRegHeart, FaBell, FaStar,
-  FaArrowUp, FaSignOutAlt, FaUser
-} from 'react-icons/fa';
-import { FaFacebook, FaTwitter, FaInstagram, FaYoutube } from 'react-icons/fa';
-import './App.css';
+  Play, Plus, Check, Info, Search, Home, Clapperboard, 
+  User, LogOut, Lock, X, Zap 
+} from 'lucide-react';
 
-const API_URL = "https://imdb.iamidiotareyoutoo.com/search?size=10&q=";
-
-// --- 1. MOCK BACKEND SERVICE (Local Storage) ---
-const AuthService = {
-  getUsers: () => JSON.parse(localStorage.getItem('filmbox_users')) || [],
-  
-  signup: (email, password, name) => {
-    const users = AuthService.getUsers();
-    if (users.find(u => u.email === email)) return { error: "User already exists" };
-    
-    const newUser = { email, password, name, myList: [] };
-    users.push(newUser);
-    localStorage.setItem('filmbox_users', JSON.stringify(users));
-    return { user: newUser };
+// --- MOCK DATA ---
+const MOVIES = [
+  {
+    id: 1,
+    title: "Cyberpunk: Edgerunners",
+    desc: "In a dystopia riddled with corruption and cybernetic implants, a talented but reckless street kid strives to become an outlaw mercenary.",
+    rating: "98% Match",
+    year: 2022,
+    duration: "1 Season",
+    genre: "Sci-Fi",
+    isPremium: true,
+    img: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&q=80&w=1000",
+    backdrop: "https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&q=80&w=1600"
   },
-
-  login: (email, password) => {
-    const users = AuthService.getUsers();
-    const user = users.find(u => u.email === email && u.password === password);
-    if (!user) return { error: "Invalid email or password" };
-    return { user };
+  {
+    id: 2,
+    title: "The Dark Knight",
+    desc: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability.",
+    rating: "96% Match",
+    year: 2008,
+    duration: "2h 32m",
+    genre: "Action",
+    isPremium: false,
+    img: "https://images.unsplash.com/photo-1509347528160-9a9e33742cd4?auto=format&fit=crop&q=80&w=1000",
+    backdrop: "https://images.unsplash.com/photo-1478720568477-152d9b164e63?auto=format&fit=crop&q=80&w=1600"
   },
+  {
+    id: 3,
+    title: "Interstellar",
+    desc: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
+    rating: "94% Match",
+    year: 2014,
+    duration: "2h 49m",
+    genre: "Sci-Fi",
+    isPremium: true,
+    img: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=1000",
+    backdrop: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&q=80&w=1600"
+  },
+  {
+    id: 4,
+    title: "Dune: Part Two",
+    desc: "Paul Atreides unites with Chani and the Fremen while on a warpath of revenge against the conspirators who destroyed his family.",
+    rating: "99% Match",
+    year: 2024,
+    duration: "2h 46m",
+    genre: "Sci-Fi",
+    isPremium: true,
+    img: "https://images.unsplash.com/photo-1541963463532-d68292c34b19?auto=format&fit=crop&q=80&w=1000",
+    backdrop: "https://images.unsplash.com/photo-1614728853913-1e320059699f?auto=format&fit=crop&q=80&w=1600"
+  },
+  {
+    id: 5,
+    title: "Inception",
+    desc: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
+    rating: "92% Match",
+    year: 2010,
+    duration: "2h 28m",
+    genre: "Action",
+    isPremium: false,
+    img: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&q=80&w=1000",
+    backdrop: "https://images.unsplash.com/photo-1504639725590-34d0984388bd?auto=format&fit=crop&q=80&w=1600"
+  },
+  {
+    id: 6,
+    title: "The Godfather",
+    desc: "The aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant son.",
+    rating: "99% Match",
+    year: 1972,
+    duration: "2h 55m",
+    genre: "Drama",
+    isPremium: true,
+    img: "https://images.unsplash.com/photo-1533488765986-dfa2a9939acd?auto=format&fit=crop&q=80&w=1000",
+    backdrop: "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&q=80&w=1600"
+  },
+];
 
-  saveUserList: (email, myList) => {
-    const users = AuthService.getUsers();
-    const index = users.findIndex(u => u.email === email);
-    if (index !== -1) {
-      users[index].myList = myList;
-      localStorage.setItem('filmbox_users', JSON.stringify(users));
-    }
-  }
-};
+// --- STYLES (Injected) ---
+const styles = `
+:root {
+  --bg-main: #09090b;
+  --bg-card: #18181b;
+  --bg-overlay: rgba(0,0,0,0.7);
+  --primary: #dc2626;
+  --text-main: #ffffff;
+  --text-muted: #a1a1aa;
+  --radius: 0.5rem;
+  --nav-height: 60px;
+}
 
-// --- 2. AUTH CONTEXT ---
-const AuthContext = createContext();
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+body { background-color: var(--bg-main); color: var(--text-main); overflow-x: hidden; }
 
+/* Layout */
+.app-container { display: flex; min-height: 100vh; position: relative; }
+.main-content { flex: 1; margin-left: 0; padding-bottom: 80px; width: 100%; transition: margin 0.3s; }
+.desktop-nav { display: none; width: 240px; height: 100vh; position: fixed; left: 0; top: 0; background: black; border-right: 1px solid #27272a; padding: 20px; z-index: 50; }
+.mobile-nav { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); border-top: 1px solid #27272a; justify-content: space-around; align-items: center; z-index: 50; }
+
+@media (min-width: 768px) {
+  .main-content { margin-left: 240px; padding-bottom: 0; }
+  .desktop-nav { display: block; }
+  .mobile-nav { display: none; }
+}
+
+/* Auth */
+.auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url('${MOVIES[0].backdrop}'); background-size: cover; }
+.auth-card { background: rgba(0,0,0,0.75); padding: 3rem; border-radius: var(--radius); backdrop-filter: blur(10px); width: 100%; max-width: 450px; text-align: center; border: 1px solid #333; }
+.btn-primary { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; width: 100%; font-size: 1rem; }
+.btn-primary:hover { background: #b91c1c; }
+
+/* Hero */
+.hero { height: 70vh; position: relative; display: flex; align-items: flex-end; padding: 40px; }
+.hero-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; mask-image: linear-gradient(to bottom, black 50%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%); }
+.hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to top, var(--bg-main), transparent 80%); z-index: 1; }
+.hero-content { position: relative; z-index: 2; max-width: 600px; }
+.hero-title { font-size: 3rem; font-weight: 800; margin-bottom: 1rem; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+.hero-meta { display: flex; gap: 15px; margin-bottom: 1.5rem; align-items: center; color: #d4d4d8; }
+.badge-match { color: #4ade80; font-weight: bold; }
+.hero-actions { display: flex; gap: 1rem; }
+.btn-hero { display: flex; align-items: center; gap: 8px; padding: 10px 24px; border-radius: 4px; font-weight: 600; cursor: pointer; border: none; font-size: 1.1rem; }
+.btn-play { background: white; color: black; }
+.btn-info { background: rgba(109, 109, 110, 0.7); color: white; backdrop-filter: blur(4px); }
+
+/* Rows & Cards */
+.row { padding: 20px 40px; }
+.row-header { font-size: 1.2rem; font-weight: 600; margin-bottom: 15px; color: #e4e4e7; }
+.row-scroller { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 20px; scrollbar-width: none; }
+.row-scroller::-webkit-scrollbar { display: none; }
+.movie-card { min-width: 200px; aspect-ratio: 16/9; position: relative; border-radius: 4px; overflow: hidden; cursor: pointer; transition: transform 0.3s; }
+.movie-card:hover { transform: scale(1.05); z-index: 10; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+.card-img { width: 100%; height: 100%; object-fit: cover; }
+.card-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); opacity: 0; transition: 0.2s; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; }
+.movie-card:hover .card-overlay { opacity: 1; }
+.premium-lock { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); padding: 4px; border-radius: 50%; color: #fbbf24; }
+
+/* Modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+.modal-content { background: #18181b; width: 90%; max-width: 800px; border-radius: 8px; overflow: hidden; position: relative; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid #333; max-height: 90vh; overflow-y: auto; }
+.modal-hero { height: 400px; position: relative; }
+.modal-close { position: absolute; top: 15px; right: 15px; background: #18181b; color: white; border-radius: 50%; p: 8px; cursor: pointer; z-index: 50; border: none; width: 36px; height: 36px; display: grid; place-items: center; }
+.modal-body { padding: 30px; }
+
+/* Search */
+.search-bar { padding: 20px 40px; position: sticky; top: 0; z-index: 40; background: linear-gradient(var(--bg-main), transparent); }
+.search-input { width: 100%; background: #27272a; border: 1px solid #3f3f46; color: white; padding: 12px 40px; border-radius: 4px; font-size: 1rem; outline: none; }
+.search-icon { position: absolute; left: 52px; top: 32px; color: #a1a1aa; }
+
+/* Nav Styles */
+.nav-link { display: flex; align-items: center; gap: 12px; color: #a1a1aa; text-decoration: none; padding: 12px; border-radius: 6px; transition: 0.2s; cursor: pointer; }
+.nav-link:hover, .nav-link.active { color: white; background: #27272a; }
+.nav-logo { font-size: 1.5rem; font-weight: 900; color: var(--primary); margin-bottom: 2rem; padding-left: 12px; }
+.nav-section { margin-top: auto; border-top: 1px solid #27272a; padding-top: 20px; }
+
+/* Utilities */
+.tag { font-size: 0.75rem; padding: 2px 6px; border: 1px solid #52525b; border-radius: 2px; }
+.hidden-mobile { display: none; }
+@media (min-width: 768px) { .hidden-mobile { display: block; } }
+`;
+
+// --- COMPONENT: APP ---
 export default function App() {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('filmbox_current_user')));
-
-  const login = (userData) => {
-    setUser(userData);
-    localStorage.setItem('filmbox_current_user', JSON.stringify(userData));
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('filmbox_current_user');
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, login, logout }}>
-      <div className="app">
-        {!user ? <AuthScreen /> : <MainApp />}
-      </div>
-    </AuthContext.Provider>
-  );
-}
-
-// --- 3. AUTH SCREEN COMPONENT ---
-function AuthScreen() {
-  const { login } = useContext(AuthContext);
-  const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ email: '', password: '', name: '' });
-  const [error, setError] = useState('');
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setError('');
-    
-    if (isLogin) {
-      const res = AuthService.login(formData.email, formData.password);
-      if (res.error) setError(res.error);
-      else login(res.user);
-    } else {
-      if (!formData.name) return setError("Name is required");
-      const res = AuthService.signup(formData.email, formData.password, formData.name);
-      if (res.error) setError(res.error);
-      else login(res.user);
-    }
-  };
-
-  return (
-    <div className="auth-container">
-      <div className="auth-overlay">
-        <div className="auth-box">
-          <div className="auth-brand"><FaFilm /> FILMBOX</div>
-          <h2>{isLogin ? 'Sign In' : 'Create Account'}</h2>
-          {error && <div className="auth-error">{error}</div>}
-          
-          <form onSubmit={handleSubmit}>
-            {!isLogin && (
-              <input 
-                type="text" placeholder="Full Name" 
-                value={formData.name}
-                onChange={e => setFormData({...formData, name: e.target.value})}
-              />
-            )}
-            <input 
-              type="email" placeholder="Email Address" required
-              value={formData.email}
-              onChange={e => setFormData({...formData, email: e.target.value})}
-            />
-            <input 
-              type="password" placeholder="Password" required
-              value={formData.password}
-              onChange={e => setFormData({...formData, password: e.target.value})}
-            />
-            <button type="submit" className="auth-btn">
-              {isLogin ? 'Sign In' : 'Sign Up'}
-            </button>
-          </form>
-
-          <p className="auth-switch">
-            {isLogin ? "New to FilmBox?" : "Already have an account?"} 
-            <span onClick={() => setIsLogin(!isLogin)}>
-              {isLogin ? ' Sign up now.' : ' Sign in.'}
-            </span>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- 4. MAIN APP LOGIC ---
-function MainApp() {
-  const [search, setSearch] = useState(""); 
+  const [user, setUser] = useState(null);
+  const [isPro, setIsPro] = useState(false); // Simulated Subscription State
+  const [watchlist, setWatchlist] = useState({}); // Local state for watchlist
+  const [currentView, setCurrentView] = useState('home'); // home, search, list
   const [selectedMovie, setSelectedMovie] = useState(null);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  return (
-    <>
-      <Navbar search={search} setSearch={setSearch} isScrolled={isScrolled} />
-      
-      <main>
-        {search.length < 3 ? (
-          <HomeView onSelect={setSelectedMovie} />
-        ) : (
-          <SearchResults search={search} onSelect={setSelectedMovie} />
-        )}
-      </main>
-
-      <AnimatePresence>
-        {selectedMovie && (
-          <MovieDetails movie={selectedMovie} onClose={() => setSelectedMovie(null)} />
-        )}
-      </AnimatePresence>
-
-      <ScrollToTop />
-      <Footer />
-    </>
-  );
-}
-
-// --- 5. SCROLL TO TOP COMPONENT ---
-function ScrollToTop() {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const toggle = () => setVisible(window.scrollY > 400);
-    window.addEventListener('scroll', toggle);
-    return () => window.removeEventListener('scroll', toggle);
-  }, []);
-
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-
-  return (
-    <div className={`scroll-top ${visible ? 'show' : ''}`} onClick={scrollToTop}>
-      <FaArrowUp />
-    </div>
-  );
-}
-
-// --- EXISTING COMPONENTS (Refined) ---
-
-function Navbar({ search, setSearch, isScrolled }) {
-  const { user, logout } = useContext(AuthContext);
-  const [showDropdown, setShowDropdown] = useState(false);
-
-  return (
-    <nav className={`navbar-new ${isScrolled ? 'scrolled' : ''}`}>
-      <div className="nav-content">
-        <div className="nav-left">
-          <div className="brand" onClick={() => setSearch("")}><FaFilm /> FILMBOX</div>
-          <ul className="nav-menu">
-            <li onClick={() => setSearch("")}>Home</li>
-            <li>Movies</li>
-            <li>TV Shows</li>
-            <li>My List</li>
-          </ul>
-        </div>
-
-        <div className="nav-right">
-          <div className="search-box">
-            <FaSearch className="search-icon" />
-            <input 
-              type="text" placeholder="Search..." 
-              value={search} onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          
-          <div className="nav-user-menu" onMouseEnter={() => setShowDropdown(true)} onMouseLeave={() => setShowDropdown(false)}>
-            <div className="profile-avatar">
-              <img src={`https://ui-avatars.com/api/?name=${user.name}&background=E50914&color=fff`} alt="User" />
-            </div>
-            {showDropdown && (
-              <div className="user-dropdown">
-                <div className="dropdown-item"><FaUser /> {user.name}</div>
-                <div className="dropdown-item" onClick={logout}><FaSignOutAlt /> Sign out</div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </nav>
-  );
-}
-
-function HomeView({ onSelect }) {
-  return (
-    <>
-      <HeroSlider query="2026 Blockbuster" onSelect={onSelect} />
-      <div className="content-rows">
-        <RankingCarousel query="Trending" onSelect={onSelect} />
-        <MovieCarousel title="New Releases" query="2025" onSelect={onSelect} />
-        <MovieCarousel title="Action & Adventure" query="Action" onSelect={onSelect} />
-      </div>
-    </>
-  );
-}
-
-function MovieDetails({ movie, onClose }) {
-  const { user } = useContext(AuthContext);
-
-  const toggleMyList = () => {
-    // Basic implementation of Local Storage persistence for "My List"
-    let updatedList = [...(user.myList || [])];
-    const exists = updatedList.find(m => m["#IMDB_ID"] === movie["#IMDB_ID"]);
-    
-    if (exists) updatedList = updatedList.filter(m => m["#IMDB_ID"] !== movie["#IMDB_ID"]);
-    else updatedList.push(movie);
-    
-    // Update local storage via AuthService
-    AuthService.saveUserList(user.email, updatedList);
-    alert(exists ? "Removed from My List" : "Added to My List");
+  // --- ACTIONS ---
+  const handleLogin = () => {
+    // Simple mock login
+    setUser({ uid: "demo-user", name: "Guest User" });
   };
 
+  const handleLogout = () => {
+    setUser(null);
+    setWatchlist({}); // Clear local watchlist on logout
+    setIsPro(false);
+  };
+
+  const toggleWatchlist = (movie) => {
+    setWatchlist(prev => ({
+      ...prev,
+      [movie.id]: !prev[movie.id]
+    }));
+  };
+
+  const handleUpgrade = () => {
+    setIsPro(true);
+    alert("Welcome to Pro! Premium content unlocked.");
+  };
+
+  // --- DERIVED STATE ---
+  const filteredMovies = useMemo(() => {
+    if (!searchQuery) return MOVIES;
+    return MOVIES.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [searchQuery]);
+
+  const watchlistMovies = useMemo(() => {
+    return MOVIES.filter(m => watchlist[m.id]);
+  }, [watchlist]);
+
+  if (!user) {
+    return (
+      <>
+        <style>{styles}</style>
+        <div className="auth-screen">
+          <div className="auth-card">
+            <h1 style={{fontSize: '2.5rem', marginBottom: '1rem', fontWeight: 900}}>StreamSaaS</h1>
+            <p style={{marginBottom: '2rem', color: '#a1a1aa'}}>Unlimited movies, TV shows, and more. Watch anywhere. Cancel anytime.</p>
+            <button onClick={handleLogin} className="btn-primary">
+              Get Started (Guest)
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // --- MAIN UI ---
   return (
-    <motion.div 
-      className="details-backdrop"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      onClick={onClose}
-    >
-      <motion.div 
-        className="details-window"
-        initial={{ y: 100, opacity: 0, scale: 0.9 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        exit={{ y: 100, opacity: 0, scale: 0.9 }}
-        onClick={e => e.stopPropagation()}
-      >
-        <button className="close-details" onClick={onClose}><FaTimes /></button>
-        <div className="details-hero">
-          <img src={movie["#IMG_POSTER"]} alt="banner" className="details-bg" />
-          <div className="details-hero-overlay">
-            <h1>{movie["#AKA"]}</h1>
-            <div className="details-meta-row">
-              <span className="rating-badge"><FaStar /> {movie["#RANK"]}</span>
-              <span>{movie["#YEAR"]}</span>
-              <span className="hd-badge">4K</span>
+    <>
+      <style>{styles}</style>
+      <div className="app-container">
+        
+        {/* DESKTOP SIDEBAR */}
+        <nav className="desktop-nav">
+          <div className="nav-logo">NETFLIX<span style={{color:'white', fontSize:'0.5em', marginLeft: 5}}>SAAS</span></div>
+          <div style={{display:'flex', flexDirection:'column', gap: 5}}>
+            <NavItem icon={<Home size={20} />} label="Home" active={currentView === 'home'} onClick={() => setCurrentView('home')} />
+            <NavItem icon={<Search size={20} />} label="Search" active={currentView === 'search'} onClick={() => setCurrentView('search')} />
+            <NavItem icon={<Clapperboard size={20} />} label="My List" active={currentView === 'list'} onClick={() => setCurrentView('list')} />
+          </div>
+          <div className="nav-section">
+             {!isPro && (
+               <div style={{background: 'linear-gradient(45deg, #7f1d1d, #ef4444)', padding: 15, borderRadius: 8, marginBottom: 20}}>
+                 <h4 style={{marginBottom: 5, display:'flex', alignItems:'center', gap:5}}><Zap size={16} fill="white" /> Go Pro</h4>
+                 <p style={{fontSize:'0.8rem', opacity:0.9, marginBottom:10}}>Unlock premium movies.</p>
+                 <button onClick={handleUpgrade} style={{width:'100%', padding:8, border:'none', borderRadius:4, background:'white', fontWeight:'bold', cursor:'pointer'}}>Upgrade</button>
+               </div>
+             )}
+             <NavItem icon={<LogOut size={20} />} label="Sign Out" onClick={handleLogout} />
+          </div>
+        </nav>
+
+        {/* MAIN CONTENT AREA */}
+        <main className="main-content">
+          
+          {/* SEARCH PAGE */}
+          {currentView === 'search' && (
+             <div className="search-page">
+                <div className="search-bar">
+                  <Search className="search-icon" size={20} />
+                  <input 
+                    type="text" 
+                    className="search-input" 
+                    placeholder="Titles, people, genres" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="row">
+                  <h3 className="row-header">Results</h3>
+                  <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap: 20}}>
+                    {filteredMovies.map(movie => (
+                       <MovieCard key={movie.id} movie={movie} onClick={() => setSelectedMovie(movie)} isPro={isPro} />
+                    ))}
+                  </div>
+                </div>
+             </div>
+          )}
+
+          {/* WATCHLIST PAGE */}
+          {currentView === 'list' && (
+             <div className="row" style={{paddingTop: 80}}>
+                <h3 className="row-header">My Watchlist</h3>
+                {watchlistMovies.length === 0 ? (
+                  <p style={{color:'#52525b'}}>Your list is empty.</p>
+                ) : (
+                  <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap: 20}}>
+                    {watchlistMovies.map(movie => (
+                       <MovieCard key={movie.id} movie={movie} onClick={() => setSelectedMovie(movie)} isPro={isPro} />
+                    ))}
+                  </div>
+                )}
+             </div>
+          )}
+
+          {/* HOME PAGE */}
+          {currentView === 'home' && (
+            <>
+              {/* Featured Hero */}
+              <div className="hero">
+                <img src={MOVIES[3].backdrop} alt="Hero" className="hero-bg" />
+                <div className="hero-overlay" />
+                <div className="hero-content">
+                  <h1 className="hero-title">{MOVIES[3].title}</h1>
+                  <div className="hero-meta">
+                     <span className="badge-match">{MOVIES[3].rating}</span>
+                     <span>{MOVIES[3].year}</span>
+                     <span className="tag">{MOVIES[3].duration}</span>
+                     <span className="tag">HD</span>
+                  </div>
+                  <p style={{marginBottom: '1.5rem', fontSize: '1.1rem', lineHeight: 1.4, maxWidth: '500px'}}>{MOVIES[3].desc}</p>
+                  <div className="hero-actions">
+                    <button className="btn-hero btn-play" onClick={() => setSelectedMovie(MOVIES[3])}><Play fill="black" size={20} /> Play</button>
+                    <button className="btn-hero btn-info" onClick={() => setSelectedMovie(MOVIES[3])}><Info size={20} /> More Info</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Categories */}
+              <MovieRow title="Trending Now" movies={MOVIES} onSelect={setSelectedMovie} isPro={isPro} />
+              <MovieRow title="Sci-Fi Thrillers" movies={MOVIES.filter(m => m.genre === 'Sci-Fi')} onSelect={setSelectedMovie} isPro={isPro} />
+              <MovieRow title="Action Blockbusters" movies={MOVIES.filter(m => m.genre === 'Action')} onSelect={setSelectedMovie} isPro={isPro} />
+            </>
+          )}
+        </main>
+
+        {/* MOBILE NAV */}
+        <nav className="mobile-nav">
+           <MobileNavItem icon={<Home size={24} />} active={currentView === 'home'} onClick={() => setCurrentView('home')} />
+           <MobileNavItem icon={<Search size={24} />} active={currentView === 'search'} onClick={() => setCurrentView('search')} />
+           <MobileNavItem icon={<Clapperboard size={24} />} active={currentView === 'list'} onClick={() => setCurrentView('list')} />
+           <MobileNavItem icon={<User size={24} />} onClick={handleLogout} />
+        </nav>
+
+        {/* DETAILS MODAL */}
+        {selectedMovie && (
+          <div className="modal-backdrop" onClick={() => setSelectedMovie(null)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <button className="modal-close" onClick={() => setSelectedMovie(null)}><X size={20} /></button>
+              
+              <div className="modal-hero">
+                <img src={selectedMovie.backdrop} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                <div style={{position:'absolute', inset:0, background:'linear-gradient(to top, #18181b, transparent)'}} />
+                <div style={{position:'absolute', bottom: 30, left: 30}}>
+                   <h2 style={{fontSize:'2.5rem', fontWeight: 800, marginBottom: 10}}>{selectedMovie.title}</h2>
+                   <div style={{display:'flex', gap: 10}}>
+                      <button className="btn-hero btn-play" style={{padding: '8px 24px'}}>
+                         <Play fill="black" size={18} /> Play
+                      </button>
+                      <button 
+                        className="btn-hero btn-info" 
+                        style={{border: '1px solid white', background: 'transparent'}}
+                        onClick={() => toggleWatchlist(selectedMovie)}
+                      >
+                        {watchlist[selectedMovie.id] ? <Check size={18} /> : <Plus size={18} />}
+                        {watchlist[selectedMovie.id] ? 'On List' : 'My List'}
+                      </button>
+                   </div>
+                </div>
+              </div>
+
+              <div className="modal-body">
+                <div style={{display:'flex', gap: 20, flexWrap: 'wrap'}}>
+                   <div style={{flex: 2, minWidth: 300}}>
+                      <div className="hero-meta" style={{color: '#d4d4d8'}}>
+                         <span className="badge-match">{selectedMovie.rating}</span>
+                         <span>{selectedMovie.year}</span>
+                         <span className="tag">{selectedMovie.duration}</span>
+                      </div>
+                      <p style={{fontSize: '1rem', lineHeight: 1.6, color: '#e4e4e7', marginBottom: 20}}>
+                        {selectedMovie.desc}
+                      </p>
+                   </div>
+                   <div style={{flex: 1, fontSize:'0.9rem', color: '#a1a1aa'}}>
+                      <p><span style={{color: '#52525b'}}>Genres:</span> {selectedMovie.genre}</p>
+                      <p><span style={{color: '#52525b'}}>Quality:</span> HD, Atmos</p>
+                      {selectedMovie.isPremium && <p style={{marginTop:10, color: '#fbbf24', display:'flex', alignItems:'center', gap:5}}><Lock size={14}/> Pro Required</p>}
+                   </div>
+                </div>
+              </div>
+
             </div>
-            <div className="details-actions">
-              <button className="play-btn-large"><FaPlay /> Play</button>
-              <button className="circ-action" onClick={toggleMyList}><FaPlus /></button>
-            </div>
           </div>
-        </div>
-        <div className="details-body">
-          <p className="plot-summary">
-            {movie["#AKA"]} ({movie["#YEAR"]}) is currently ranked #{movie["#RANK"]}.
-            An incredible cinematic experience featuring {movie["#ACTORS"]}.
-          </p>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
+        )}
 
-function RankingCarousel({ query, onSelect }) {
-  const [movies, setMovies] = useState([]);
-  useEffect(() => {
-    fetch(API_URL + query).then(res => res.json()).then(data => setMovies(data.description.slice(0, 10)));
-  }, [query]);
-
-  return (
-    <div className="carousel-row">
-      <h3 className="row-title">Top 10 Today</h3>
-      <div className="carousel-track">
-        {movies.map((m, i) => (
-          <div key={i} className="ranking-card-wrapper" onClick={() => onSelect(m)}>
-            <div className="ranking-number">{i + 1}</div>
-            <div className="m-card"><img src={m["#IMG_POSTER"]} alt="poster" /></div>
-          </div>
-        ))}
       </div>
-    </div>
+    </>
   );
 }
 
-function MovieCarousel({ title, query, onSelect }) {
-  const [movies, setMovies] = useState([]);
-  useEffect(() => {
-    fetch(API_URL + query).then(res => res.json()).then(data => setMovies(data.description || []));
-  }, [query]);
+// --- SUB COMPONENTS ---
 
-  return (
-    <div className="carousel-row">
-      <h3 className="row-title">{title}</h3>
-      <div className="carousel-track">
-        {movies.length === 0 
-          ? [...Array(6)].map((_, i) => <div key={i} className="skeleton card-skeleton" />)
-          : movies.map((m, i) => <MovieCard key={i} movie={m} onSelect={() => onSelect(m)} />)
-        }
-      </div>
+const NavItem = ({ icon, label, active, onClick }) => (
+  <div onClick={onClick} className={`nav-link ${active ? 'active' : ''}`}>
+    {icon}
+    <span>{label}</span>
+  </div>
+);
+
+const MobileNavItem = ({ icon, active, onClick }) => (
+  <div onClick={onClick} style={{color: active ? 'white' : '#71717a', padding: 10}}>
+    {icon}
+  </div>
+);
+
+const MovieRow = ({ title, movies, onSelect, isPro }) => (
+  <div className="row">
+    <h3 className="row-header">{title}</h3>
+    <div className="row-scroller">
+      {movies.map(movie => (
+        <MovieCard key={movie.id} movie={movie} onClick={() => onSelect(movie)} isPro={isPro} />
+      ))}
     </div>
-  );
-}
+  </div>
+);
 
-function HeroSlider({ query, onSelect }) {
-  const [movies, setMovies] = useState([]);
-  useEffect(() => {
-    fetch(API_URL + query).then(res => res.json()).then(data => setMovies(data.description.slice(0, 5)));
-  }, [query]);
-
-  if (!movies.length) return <div className="skeleton hero-skeleton" />;
-  const active = movies[0];
-
+const MovieCard = ({ movie, onClick, isPro }) => {
+  const isLocked = movie.isPremium && !isPro;
   return (
-    <div className="hero-wrap">
-      <img src={active["#IMG_POSTER"]} className="hero-image" alt="bg" />
-      <div className="hero-overlay">
-        <div className="hero-text">
-          <h1>{active["#AKA"]}</h1>
-          <div className="hero-btns">
-            <button className="play-btn" onClick={() => onSelect(active)}><FaPlay /> Play</button>
-            <button className="list-btn"><FaPlus /> My List</button>
+    <div className="movie-card" onClick={onClick}>
+      <img src={movie.img} alt={movie.title} className="card-img" />
+      {isLocked && <div className="premium-lock"><Lock size={16} /></div>}
+      <div className="card-overlay">
+        <h4 style={{fontSize:'0.9rem', fontWeight:'bold', marginBottom: 4}}>{movie.title}</h4>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+          <span style={{fontSize:'0.7rem', color:'#4ade80'}}>{movie.rating}</span>
+          <div style={{background:'white', borderRadius:'50%', padding: 4, display:'flex'}}>
+            <Play size={10} fill="black" color="black" />
           </div>
         </div>
       </div>
     </div>
   );
-}
-
-function MovieCard({ movie, onSelect }) {
-  return (
-    <div className="m-card" onClick={onSelect}>
-      <img src={movie["#IMG_POSTER"]} alt="poster" loading="lazy" />
-      <div className="m-info">
-        <h4>{movie["#AKA"]}</h4>
-        <p>{movie["#YEAR"]}</p>
-      </div>
-    </div>
-  );
-}
-
-function SearchResults({ search, onSelect }) {
-  const [movies, setMovies] = useState([]);
-  useEffect(() => {
-    fetch(API_URL + search).then(res => res.json()).then(data => setMovies(data.description || []));
-  }, [search]);
-
-  return (
-    <div className="search-section">
-      <h2 className="search-heading">Results for "{search}"</h2>
-      <div className="search-grid">
-        {movies.map((m, i) => <MovieCard key={i} movie={m} onSelect={() => onSelect(m)} />)}
-      </div>
-    </div>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="footer-new">
-      <div className="f-top">
-        <div className="f-logo"><FaFilm /> FILMBOX</div>
-        <div className="f-social"><FaFacebook /><FaTwitter /><FaInstagram /><FaYoutube /></div>
-      </div>
-      <p>&copy; 2026 FilmBox Inc.</p>
-    </footer>
-  );
-}
+};

@@ -1,136 +1,357 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-
+/* ==========================================
+   1. CORE VARIABLES & RESET
+   ========================================== */
 :root {
-  --primary: #E50914;
-  --bg: #05070a;
-  --card-bg: #11141b;
-  --sk-base: #1e293b;
-  --sk-shine: #334155;
+  --primary: #E50914; /* Brand Red */
+  --bg-dark: #000000;
+  --sidebar-bg: #000000;
+  --text-main: #ffffff;
+  --text-muted: #a3a3a3;
+  --nav-width: 80px;
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; overflow-x: hidden; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-/* --- AUTH SCREENS --- */
-.auth-container {
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================
+   2. LAYOUT & SIDEBAR
+   ========================================== */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: var(--nav-width);
   height: 100vh;
-  width: 100vw;
-  background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url('https://assets.nflxext.com/ffe/siteui/vlv3/f841d4c7-10e1-40af-bcae-07a3f8dc141a/f6d7434e-d6de-4185-a6d4-c77a2d08737b/US-en-20220502-popsignuptwoweeks-perspective_alpha_website_medium.jpg');
-  background-size: cover;
-  display: flex; justify-content: center; align-items: center;
+  position: fixed;
+  left: 0;
+  top: 0;
+  background: var(--sidebar-bg);
+  border-right: 1px solid #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px 0;
+  z-index: 1000;
 }
 
-.auth-box {
-  background: rgba(0, 0, 0, 0.75);
-  padding: 60px 68px 40px;
-  border-radius: 4px;
-  width: 100%;
-  max-width: 450px;
-  min-height: 500px;
-}
-
-.auth-brand { font-size: 2rem; font-weight: 800; color: var(--primary); margin-bottom: 2rem; display: flex; align-items: center; gap: 10px; }
-.auth-box h2 { font-size: 2rem; margin-bottom: 28px; font-weight: 700; }
-
-.auth-box input {
-  background: #333;
-  border-radius: 4px;
-  border: 0;
-  color: #fff;
-  height: 50px;
-  line-height: 50px;
-  padding: 0 20px;
-  width: 100%;
-  margin-bottom: 16px;
-}
-
-.auth-btn {
-  background-color: var(--primary);
-  border-radius: 4px;
-  font-size: 16px;
-  font-weight: 700;
-  margin: 24px 0 12px;
-  padding: 16px;
-  width: 100%;
-  border: none;
-  color: white;
+.brand {
+  color: var(--primary);
+  font-size: 2rem;
+  font-weight: 900;
+  margin-bottom: 50px;
   cursor: pointer;
 }
 
-.auth-switch { color: #737373; font-size: 16px; margin-top: 16px; }
-.auth-switch span { color: #fff; cursor: pointer; }
-.auth-switch span:hover { text-decoration: underline; }
-.auth-error { background: #e87c03; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
-
-/* --- NAVBAR USER MENU --- */
-.nav-user-menu { position: relative; cursor: pointer; }
-.profile-avatar img { width: 32px; height: 32px; border-radius: 4px; }
-.user-dropdown {
-  position: absolute; top: 40px; right: 0; background: #000;
-  border: 1px solid #333; width: 150px; padding: 10px 0;
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 35px;
+  flex: 1;
 }
-.dropdown-item { padding: 10px 15px; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #ccc; }
-.dropdown-item:hover { background: #222; color: #fff; }
 
-/* --- SCROLL TO TOP --- */
-.scroll-top {
-  position: fixed; bottom: 30px; right: 30px;
-  background: var(--primary); color: white;
-  width: 50px; height: 50px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.2rem; cursor: pointer;
-  opacity: 0; visibility: hidden; transition: 0.3s;
-  z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+.nav-link {
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  transition: var(--transition);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
-.scroll-top.show { opacity: 1; visibility: visible; }
-.scroll-top:hover { transform: translateY(-5px); }
 
-/* --- EXISTING STYLES --- */
-/* (Keep all previous styles for Navbar, Hero, Cards, Ranking, Details, Skeleton) */
-.navbar-new { position: fixed; top: 0; width: 100%; z-index: 1000; padding: 1.2rem 5%; transition: 0.4s; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
-.navbar-new.scrolled { padding: 0.8rem 5%; background: rgba(5, 7, 10, 0.95); backdrop-filter: blur(20px); }
-.nav-content { display: flex; justify-content: space-between; align-items: center; }
-.nav-left, .nav-right { display: flex; align-items: center; gap: 2rem; }
-.brand { font-weight: 800; font-size: 1.5rem; color: var(--primary); cursor: pointer; display: flex; gap: 8px; }
-.nav-menu { list-style: none; display: flex; gap: 1.5rem; color: #ccc; }
-.nav-menu li:hover { color: #fff; cursor: pointer; }
-.search-box { background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 20px; display: flex; align-items: center; width: 220px; }
-.search-box input { background: transparent; border: none; color: #fff; margin-left: 10px; width: 100%; outline: none; }
+.nav-link:hover, .nav-link.active {
+  color: var(--text-main);
+}
 
-.skeleton { background: var(--sk-base); background-image: linear-gradient(90deg, var(--sk-base), var(--sk-shine), var(--sk-base)); background-size: 200%; animation: shimmer 1.5s infinite linear; border-radius: 8px; }
-@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-.hero-skeleton { height: 80vh; }
-.card-skeleton { min-width: 200px; height: 300px; }
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  right: -24px;
+  height: 25px;
+  width: 3px;
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
+}
 
-.hero-wrap { height: 85vh; position: relative; }
-.hero-image { width: 100%; height: 100%; object-fit: cover; }
-.hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--bg) 10%, transparent 50%); display: flex; align-items: center; padding: 0 5%; }
-.hero-text h1 { font-size: 4rem; margin-bottom: 20px; }
-.play-btn { background: #fff; color: #000; padding: 12px 30px; border-radius: 4px; font-weight: 800; border: none; cursor: pointer; }
-.list-btn { background: rgba(255,255,255,0.2); color: #fff; padding: 12px 30px; border-radius: 4px; border: none; cursor: pointer; }
+.user-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
-.carousel-row { padding: 2rem 5%; }
-.carousel-track { display: flex; gap: 1.5rem; overflow-x: auto; scrollbar-width: none; padding: 10px 0; }
-.m-card { min-width: 200px; height: 300px; border-radius: 8px; overflow: hidden; position: relative; transition: 0.3s; cursor: pointer; }
-.m-card img { width: 100%; height: 100%; object-fit: cover; }
-.m-card:hover { transform: scale(1.05); }
+.logout-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
 
-.ranking-card-wrapper { display: flex; align-items: flex-end; position: relative; min-width: 280px; height: 300px; cursor: pointer; }
-.ranking-number { font-size: 11rem; font-weight: 900; color: var(--bg); -webkit-text-stroke: 3px rgba(255,255,255,0.2); position: absolute; left: -10px; bottom: -20px; z-index: 1; }
-.ranking-card-wrapper:hover .ranking-number { -webkit-text-stroke: 3px var(--primary); }
-.ranking-card-wrapper .m-card { margin-left: 70px; z-index: 2; width: 180px; height: 260px; }
+/* ==========================================
+   3. HERO SECTION (Immersive Reference)
+   ========================================== */
+.main-content {
+  margin-left: var(--nav-width);
+  flex: 1;
+}
 
-.details-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
-.details-window { width: 900px; background: #181818; border-radius: 12px; overflow: hidden; position: relative; }
-.details-hero { height: 400px; position: relative; }
-.details-bg { width: 100%; height: 100%; object-fit: cover; }
-.details-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, #181818, transparent); display: flex; flex-direction: column; justify-content: flex-end; padding: 40px; }
-.close-details { position: absolute; top: 20px; right: 20px; z-index: 10; background: rgba(0,0,0,0.5); border: none; color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
-.details-body { padding: 40px; }
-.details-actions { display: flex; gap: 15px; margin-top: 20px; }
-.play-btn-large { background: #fff; color: #000; padding: 12px 30px; border-radius: 4px; font-weight: 800; border: none; cursor: pointer; }
-.circ-action { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #555; background: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.hero-container {
+  position: relative;
+  height: 85vh;
+  width: 100%;
+  overflow: hidden;
+}
 
-.search-section { padding: 8rem 5% 4rem; }
-.search-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2rem; }
-.footer-new { padding: 4rem 5%; background: #020202; border-top: 1px solid #111; text-align: center; color: #555; }
-.f-social { display: flex; justify-content: center; gap: 2rem; margin: 1.5rem 0; font-size: 1.5rem; }
+.hero-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(77deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 85%),
+              linear-gradient(to top, var(--bg-dark) 0%, transparent 20%);
+  display: flex;
+  align-items: center;
+  padding: 0 5%;
+}
+
+.hero-text {
+  max-width: 600px;
+  z-index: 2;
+}
+
+.n-series {
+  color: var(--text-muted);
+  letter-spacing: 4px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.n-series::before {
+  content: 'N';
+  color: var(--primary);
+  margin-right: 8px;
+}
+
+.hero-text h1 {
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 1.1;
+  margin-bottom: 15px;
+}
+
+.hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.match { color: #46d369; }
+.badge {
+  border: 1px solid rgba(255,255,255,0.4);
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  border-radius: 3px;
+}
+
+.hero-text p {
+  font-size: 1.1rem;
+  line-height: 1.5;
+  color: #e5e5e5;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+  margin-bottom: 25px;
+}
+
+/* ==========================================
+   4. BUTTONS & UI
+   ========================================= */
+.btn-row { display: flex; gap: 12px; }
+
+.btn {
+  padding: 12px 28px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  transition: var(--transition);
+}
+
+.btn-white { background: #ffffff; color: #000000; }
+.btn-white:hover { background: rgba(255,255,255,0.75); }
+
+.btn-gray { background: rgba(109, 109, 110, 0.7); color: #ffffff; }
+.btn-gray:hover { background: rgba(109, 109, 110, 0.4); }
+
+/* ==========================================
+   5. MOVIE ROWS
+   ========================================== */
+.content-layer {
+  margin-top: -120px;
+  position: relative;
+  z-index: 10;
+  padding-bottom: 50px;
+}
+
+.row-header {
+  padding: 0 5%;
+  margin-bottom: 12px;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.film-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px 5% 40px;
+  scrollbar-width: none;
+}
+.film-row::-webkit-scrollbar { display: none; }
+
+.movie-card {
+  min-width: 200px;
+  aspect-ratio: 16/9;
+  background: #141414;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.4s ease;
+}
+
+.movie-card:hover {
+  transform: scale(1.15);
+  z-index: 100;
+}
+
+.movie-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ==========================================
+   6. AUTH PAGE (SaaS Login)
+   ========================================== */
+.auth-page {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
+              url('https://assets.nflxext.com/ffe/siteui/vlv3/f841d4c7-10e1-40af-bcae-07a3f8dc141a/f6d7434e-d6de-4185-a6d4-c77a2d08737b/US-en-20220502-popsignuptwoweeks-perspective_alpha_website_medium.jpg');
+  background-size: cover;
+}
+
+.auth-form {
+  background: rgba(0,0,0,0.75);
+  padding: 60px;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 450px;
+}
+
+.input-group {
+  width: 100%;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: #333;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.btn-full {
+  width: 100%;
+  background: var(--primary);
+  color: white;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+/* ==========================================
+   7. MOBILE RESPONSIVENESS
+   ========================================== */
+@media (max-width: 768px) {
+  /* Sidebar to Bottom Nav */
+  .sidebar {
+    width: 100%;
+    height: 70px;
+    bottom: 0;
+    top: auto;
+    flex-direction: row;
+    padding: 0 20px;
+    border-right: none;
+    border-top: 1px solid #1a1a1a;
+    background: rgba(0,0,0,0.95);
+    backdrop-filter: blur(10px);
+  }
+
+  .brand, .user-actions { display: none; }
+  
+  .nav-menu {
+    flex-direction: row;
+    justify-content: space-around;
+    width: 100%;
+    align-items: center;
+  }
+
+  .nav-link.active::after { display: none; }
+  .nav-link.active { color: var(--primary); }
+
+  /* Adjust Main Content */
+  .main-content {
+    margin-left: 0;
+    margin-bottom: 70px;
+  }
+
+  .hero-container { height: 65vh; }
+  
+  .hero-overlay {
+    padding-bottom: 40px;
+    align-items: flex-end;
+  }
+
+  .hero-text h1 { font-size: 2.2rem; }
+  .btn-row { flex-direction: column; width: 100%; }
+  .btn { width: 100%; justify-content: center; }
+
+  .content-layer { margin-top: -20px; }
+  .movie-card { min-width: 160px; }
+}
+
+.placeholder-page, .loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80vh;
+  font-size: 1.5rem;
+  color: var(--text-muted);
+}
