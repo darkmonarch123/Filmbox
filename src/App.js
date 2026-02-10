@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaSearch, FaPlay, FaInfoCircle, FaTimes, 
-  FaPlus, FaCheck, FaBell, FaSignOutAlt, FaUser, FaArrowUp, FaChevronDown 
+  FaPlus, FaCheck, FaBell, FaUser, FaChevronDown, 
+  FaLock, FaEnvelope 
 } from 'react-icons/fa';
 import { FaFacebook, FaTwitter, FaInstagram, FaYoutube } from 'react-icons/fa';
 import './App.css';
@@ -10,9 +11,13 @@ import './App.css';
 // --- CONFIG ---
 const API_URL = "https://imdb.iamidiotareyoutoo.com/search?size=20&q=";
 
-// --- AUTH SERVICE (Same as before) ---
+// --- 1. MOCK BACKEND SERVICE WITH 2FA ---
 const AuthService = {
   getUsers: () => JSON.parse(localStorage.getItem('filmbox_users')) || [],
+  
+  // Temporary storage for OTPs (In a real app, this is Redis/DB)
+  otps: {}, 
+
   signup: (email, password, name) => {
     const users = AuthService.getUsers();
     if (users.find(u => u.email === email)) return { error: "User already exists" };
@@ -21,12 +26,30 @@ const AuthService = {
     localStorage.setItem('filmbox_users', JSON.stringify(users));
     return { user: newUser };
   },
+
   login: (email, password) => {
     const users = AuthService.getUsers();
     const user = users.find(u => u.email === email && u.password === password);
     if (!user) return { error: "Invalid email or password" };
     return { user };
   },
+
+  // Generate a fake 6-digit code
+  sendOTP: (email) => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    AuthService.otps[email] = code;
+    console.log(`[EMAIL SERVICE] Sending code ${code} to ${email}`);
+    return code; 
+  },
+
+  verifyOTP: (email, inputCode) => {
+    if (AuthService.otps[email] === inputCode) {
+        delete AuthService.otps[email]; // Clear code after use
+        return true;
+    }
+    return false;
+  },
+
   saveUserList: (email, myList) => {
     const users = AuthService.getUsers();
     const index = users.findIndex(u => u.email === email);
@@ -37,21 +60,27 @@ const AuthService = {
   }
 };
 
+// --- AUTH CONTEXT & NOTIFICATION SYSTEM ---
 const AuthContext = createContext();
 
 export default function App() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('filmbox_current_user')));
   const [appLoading, setAppLoading] = useState(false);
+  
+  // Notification State
+  const [notification, setNotification] = useState(null);
+
+  const showNotification = (message, title = "System Notification") => {
+      setNotification({ title, message });
+      // Auto dismiss after 6 seconds
+      setTimeout(() => setNotification(null), 6000);
+  };
 
   const login = (userData) => {
-    setAppLoading(true); // Trigger Splash Screen
+    setAppLoading(true);
     setUser(userData);
     localStorage.setItem('filmbox_current_user', JSON.stringify(userData));
-    
-    // Fake loading delay to show the animation
-    setTimeout(() => {
-        setAppLoading(false);
-    }, 2500);
+    setTimeout(() => setAppLoading(false), 2500);
   };
 
   const logout = () => {
@@ -67,8 +96,27 @@ export default function App() {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateUserList }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUserList, showNotification }}>
       <div className="app">
+        {/* GLOBAL NOTIFICATION (Simulated Push) */}
+        <AnimatePresence>
+            {notification && (
+                <motion.div 
+                    className="push-notification"
+                    initial={{ y: -100, opacity: 0 }}
+                    animate={{ y: 20, opacity: 1 }}
+                    exit={{ y: -100, opacity: 0 }}
+                    onClick={() => setNotification(null)}
+                >
+                    <div className="push-icon"><FaEnvelope /></div>
+                    <div className="push-content">
+                        <h4>{notification.title}</h4>
+                        <p>{notification.message}</p>
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+
         <AnimatePresence mode="wait">
           {!user ? (
             <AuthScreen key="auth" />
@@ -83,26 +131,18 @@ export default function App() {
   );
 }
 
-// --- NEW COMPONENT: SPLASH SCREEN ---
+// --- SPLASH SCREEN ---
 function SplashScreen() {
     return (
         <motion.div 
             className="splash-screen"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         >
             <motion.div 
                 className="splash-logo"
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1.2, opacity: 1 }}
-                transition={{ 
-                    duration: 2, 
-                    ease: "easeInOut", 
-                    repeat: Infinity, 
-                    repeatType: "reverse" 
-                }}
+                transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
             >
                 <span className="red-text">FILM</span>BOX
             </motion.div>
@@ -111,11 +151,16 @@ function SplashScreen() {
     );
 }
 
-// --- AUTH SCREEN ---
+// --- UPDATED AUTH SCREEN WITH 2FA ---
 function AuthScreen() {
-  const { login } = useContext(AuthContext);
+  const { login, showNotification } = useContext(AuthContext);
+  const [step, setStep] = useState('credentials'); // 'credentials' or '2fa'
   const [isLogin, setIsLogin] = useState(true);
+  
   const [formData, setFormData] = useState({ email: '', password: '', name: '' });
+  const [otp, setOtp] = useState('');
+  const [pendingUser, setPendingUser] = useState(null);
+  
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -124,22 +169,46 @@ function AuthScreen() {
     setError('');
     setLoading(true);
     
+    // Simulate network check
     setTimeout(() => {
+        let res;
         if (isLogin) {
-            const res = AuthService.login(formData.email, formData.password);
-            if (res.error) setError(res.error);
-            else login(res.user);
+            res = AuthService.login(formData.email, formData.password);
         } else {
             if (!formData.name) {
                 setLoading(false);
                 return setError("Name is required");
             }
-            const res = AuthService.signup(formData.email, formData.password, formData.name);
-            if (res.error) setError(res.error);
-            else login(res.user);
+            res = AuthService.signup(formData.email, formData.password, formData.name);
         }
-        setLoading(false);
+
+        if (res.error) {
+            setError(res.error);
+            setLoading(false);
+        } else {
+            // STEP 1 SUCCESS: Trigger 2FA
+            const code = AuthService.sendOTP(res.user.email);
+            setPendingUser(res.user);
+            setStep('2fa');
+            setLoading(false);
+            
+            // SIMULATE PUSH NOTIFICATION
+            showNotification(
+                `Your verification code is: ${code}`, 
+                "📧 New Email from FilmBox"
+            );
+        }
     }, 800);
+  };
+
+  const handleVerify = (e) => {
+      e.preventDefault();
+      setError('');
+      if(AuthService.verifyOTP(pendingUser.email, otp)) {
+          login(pendingUser);
+      } else {
+          setError("Invalid code. Please check your notification.");
+      }
   };
 
   return (
@@ -150,38 +219,65 @@ function AuthScreen() {
       <div className="auth-overlay">
         <div className="auth-box">
           <div className="auth-brand"><span className="red-text">FILM</span>BOX</div>
-          <h2>{isLogin ? 'Sign In' : 'Sign Up'}</h2>
-          {error && <div className="auth-error">{error}</div>}
           
-          <form onSubmit={handleSubmit}>
-            {!isLogin && (
-              <input 
-                type="text" placeholder="Full Name" 
-                value={formData.name}
-                onChange={e => setFormData({...formData, name: e.target.value})}
-              />
-            )}
-            <input 
-              type="email" placeholder="Email or phone number" required
-              value={formData.email}
-              onChange={e => setFormData({...formData, email: e.target.value})}
-            />
-            <input 
-              type="password" placeholder="Password" required
-              value={formData.password}
-              onChange={e => setFormData({...formData, password: e.target.value})}
-            />
-            <button type="submit" className="auth-btn" disabled={loading}>
-              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
-            </button>
-          </form>
+          {step === 'credentials' ? (
+              // FORM 1: EMAIL/PASS
+              <>
+                <h2>{isLogin ? 'Sign In' : 'Create Account'}</h2>
+                {error && <div className="auth-error">{error}</div>}
+                <form onSubmit={handleSubmit}>
+                    {!isLogin && (
+                    <input 
+                        type="text" placeholder="Full Name" value={formData.name}
+                        onChange={e => setFormData({...formData, name: e.target.value})}
+                    />
+                    )}
+                    <input 
+                    type="email" placeholder="Email" required value={formData.email}
+                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    />
+                    <input 
+                    type="password" placeholder="Password" required value={formData.password}
+                    onChange={e => setFormData({...formData, password: e.target.value})}
+                    />
+                    <button type="submit" className="auth-btn" disabled={loading}>
+                    {loading ? 'Processing...' : (isLogin ? 'Continue' : 'Sign Up')}
+                    </button>
+                </form>
+                <div className="auth-footer">
+                    <span className="gray-text">{isLogin ? "New here?" : "Member?"} </span>
+                    <span className="auth-link" onClick={() => setIsLogin(!isLogin)}>
+                    {isLogin ? 'Sign up now.' : 'Sign in.'}
+                    </span>
+                </div>
+              </>
+          ) : (
+              // FORM 2: 2FA CODE
+              <motion.div 
+                initial={{ x: 50, opacity: 0 }} 
+                animate={{ x: 0, opacity: 1 }}
+              >
+                  <h2><FaLock style={{fontSize:'0.8em'}}/> Security Check</h2>
+                  <p className="gray-text" style={{marginBottom:'20px'}}>
+                      We sent a code to <b>{formData.email}</b>. Please check the notification at the top.
+                  </p>
+                  {error && <div className="auth-error">{error}</div>}
+                  <form onSubmit={handleVerify}>
+                      <input 
+                        type="text" placeholder="Ex: 123456" 
+                        value={otp} onChange={e => setOtp(e.target.value)}
+                        style={{letterSpacing: '5px', textAlign: 'center', fontSize: '1.2rem'}}
+                        maxLength={6} autoFocus
+                      />
+                      <button type="submit" className="auth-btn">Verify & Login</button>
+                  </form>
+                  <p className="auth-link" style={{textAlign:'center', marginTop:'15px', fontSize:'13px'}} 
+                     onClick={() => setStep('credentials')}>
+                      Back to login
+                  </p>
+              </motion.div>
+          )}
 
-          <div className="auth-footer">
-            <span className="gray-text">{isLogin ? "New to FilmBox?" : "Already have an account?"} </span>
-            <span className="auth-link" onClick={() => setIsLogin(!isLogin)}>
-              {isLogin ? 'Sign up now.' : 'Sign in.'}
-            </span>
-          </div>
         </div>
       </div>
     </motion.div>
@@ -239,12 +335,12 @@ function MainApp() {
   );
 }
 
-// --- UPDATED NAVBAR WITH ANIMATED DROPDOWN ---
+// --- NAVBAR ---
 function Navbar({ search, setSearch, isScrolled }) {
   const { user, logout } = useContext(AuthContext);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Animation variants for the dropdown
+  // Corrected animation syntax (ensuring y is a key, not a variable)
   const dropdownVariants = {
     hidden: { opacity: 0, y: -20, scale: 0.95 },
     visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.2, ease: "easeOut" } },
@@ -282,10 +378,7 @@ function Navbar({ search, setSearch, isScrolled }) {
         >
           <div className="user-trigger">
             <img src={`https://ui-avatars.com/api/?name=${user.name}&background=E50914&color=fff&rounded=true`} alt="User" />
-            <motion.span 
-                animate={{ rotate: showDropdown ? 180 : 0 }} 
-                className="caret"
-            >
+            <motion.span animate={{ rotate: showDropdown ? 180 : 0 }} className="caret">
                 <FaChevronDown size={12} />
             </motion.span>
           </div>
@@ -295,9 +388,7 @@ function Navbar({ search, setSearch, isScrolled }) {
                 <motion.div 
                     className="user-dropdown"
                     variants={dropdownVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
+                    initial="hidden" animate="visible" exit="exit"
                 >
                     <div className="dropdown-arrow"></div>
                     <div className="dropdown-item">Profile</div>
@@ -313,7 +404,7 @@ function Navbar({ search, setSearch, isScrolled }) {
   );
 }
 
-// --- VIDEO PLAYER (Same as before) ---
+// --- VIDEO PLAYER ---
 function VideoPlayer({ movie, onClose }) {
     const query = encodeURIComponent(`${movie["#AKA"]} ${movie["#YEAR"]} trailer`);
     const embedUrl = `https://www.youtube.com/embed?listType=search&list=${query}&autoplay=1&controls=1&modestbranding=1&rel=0`;
@@ -328,16 +419,13 @@ function VideoPlayer({ movie, onClose }) {
                 <button onClick={onClose}><FaTimes /></button>
             </div>
             <div className="iframe-container">
-                <iframe 
-                    src={embedUrl} title="Player" frameBorder="0" 
-                    allow="autoplay; encrypted-media" allowFullScreen
-                ></iframe>
+                <iframe src={embedUrl} title="Player" frameBorder="0" allow="autoplay; encrypted-media" allowFullScreen></iframe>
             </div>
         </motion.div>
     );
 }
 
-// --- HOME VIEW & SLIDER (Same structure, added Motion) ---
+// --- HOME VIEW ---
 function HomeView({ onSelect, onPlay }) {
   return (
     <>
@@ -360,7 +448,6 @@ function HeroSlider({ query, onSelect, onPlay }) {
     });
   }, [query]);
 
-  // SKELETON LOADING FOR HERO
   if (!movie) return (
       <div className="hero-container skeleton-pulse">
           <div className="hero-content">
@@ -383,9 +470,7 @@ function HeroSlider({ query, onSelect, onPlay }) {
         transition={{ delay: 0.5, duration: 0.8 }}
       >
         <h1 className="hero-title">{movie["#AKA"]}</h1>
-        <p className="hero-desc">
-            Ranked #{movie["#RANK"]} • {movie["#YEAR"]}
-        </p>
+        <p className="hero-desc">Ranked #{movie["#RANK"]} • {movie["#YEAR"]}</p>
         <div className="hero-buttons">
           <button className="btn btn-play" onClick={() => onPlay(movie)}><FaPlay /> Play</button>
           <button className="btn btn-info" onClick={() => onSelect(movie)}><FaInfoCircle /> More Info</button>
@@ -449,7 +534,6 @@ function MovieCarousel({ title, query, onSelect }) {
     <div className="row">
       <h3>{title}</h3>
       <div className="row-posters">
-        {/* SKELETONS IF EMPTY */}
         {movies.length === 0 
             ? [...Array(6)].map((_, i) => <div key={i} className="poster-card skeleton-card" />)
             : movies.map((m, i) => (
