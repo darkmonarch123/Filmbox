@@ -1,36 +1,32 @@
 import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FaSearch, FaPlay, FaHeart, FaFilm, FaTimes, 
-  FaChevronLeft, FaChevronRight, FaPlus, FaRegHeart, FaBell, FaStar,
-  FaArrowUp, FaSignOutAlt, FaUser
+  FaSearch, FaPlay, FaInfoCircle, FaTimes, 
+  FaPlus, FaCheck, FaBell, FaSignOutAlt, FaUser, FaArrowUp 
 } from 'react-icons/fa';
 import { FaFacebook, FaTwitter, FaInstagram, FaYoutube } from 'react-icons/fa';
 import './App.css';
 
-const API_URL = "https://imdb.iamidiotareyoutoo.com/search?size=10&q=";
+// --- CONFIG ---
+const API_URL = "https://imdb.iamidiotareyoutoo.com/search?size=20&q=";
 
-// --- 1. MOCK BACKEND SERVICE (Local Storage) ---
+// --- 1. MOCK BACKEND SERVICE ---
 const AuthService = {
   getUsers: () => JSON.parse(localStorage.getItem('filmbox_users')) || [],
-  
   signup: (email, password, name) => {
     const users = AuthService.getUsers();
     if (users.find(u => u.email === email)) return { error: "User already exists" };
-    
     const newUser = { email, password, name, myList: [] };
     users.push(newUser);
     localStorage.setItem('filmbox_users', JSON.stringify(users));
     return { user: newUser };
   },
-
   login: (email, password) => {
     const users = AuthService.getUsers();
     const user = users.find(u => u.email === email && u.password === password);
     if (!user) return { error: "Invalid email or password" };
     return { user };
   },
-
   saveUserList: (email, myList) => {
     const users = AuthService.getUsers();
     const index = users.findIndex(u => u.email === email);
@@ -57,8 +53,15 @@ export default function App() {
     localStorage.removeItem('filmbox_current_user');
   };
 
+  const updateUserList = (newList) => {
+    const updatedUser = { ...user, myList: newList };
+    setUser(updatedUser);
+    localStorage.setItem('filmbox_current_user', JSON.stringify(updatedUser));
+    AuthService.saveUserList(user.email, newList);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUserList }}>
       <div className="app">
         {!user ? <AuthScreen /> : <MainApp />}
       </div>
@@ -66,35 +69,44 @@ export default function App() {
   );
 }
 
-// --- 3. AUTH SCREEN COMPONENT ---
+// --- 3. AUTH SCREEN ---
 function AuthScreen() {
   const { login } = useContext(AuthContext);
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ email: '', password: '', name: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     
-    if (isLogin) {
-      const res = AuthService.login(formData.email, formData.password);
-      if (res.error) setError(res.error);
-      else login(res.user);
-    } else {
-      if (!formData.name) return setError("Name is required");
-      const res = AuthService.signup(formData.email, formData.password, formData.name);
-      if (res.error) setError(res.error);
-      else login(res.user);
-    }
+    // Simulate network delay
+    setTimeout(() => {
+        if (isLogin) {
+            const res = AuthService.login(formData.email, formData.password);
+            if (res.error) setError(res.error);
+            else login(res.user);
+        } else {
+            if (!formData.name) {
+                setLoading(false);
+                return setError("Name is required");
+            }
+            const res = AuthService.signup(formData.email, formData.password, formData.name);
+            if (res.error) setError(res.error);
+            else login(res.user);
+        }
+        setLoading(false);
+    }, 800);
   };
 
   return (
     <div className="auth-container">
       <div className="auth-overlay">
         <div className="auth-box">
-          <div className="auth-brand"><FaFilm /> FILMBOX</div>
-          <h2>{isLogin ? 'Sign In' : 'Create Account'}</h2>
+          <div className="auth-brand"><span className="red-text">FILM</span>BOX</div>
+          <h2>{isLogin ? 'Sign In' : 'Sign Up'}</h2>
           {error && <div className="auth-error">{error}</div>}
           
           <form onSubmit={handleSubmit}>
@@ -106,7 +118,7 @@ function AuthScreen() {
               />
             )}
             <input 
-              type="email" placeholder="Email Address" required
+              type="email" placeholder="Email or phone number" required
               value={formData.email}
               onChange={e => setFormData({...formData, email: e.target.value})}
             />
@@ -115,206 +127,260 @@ function AuthScreen() {
               value={formData.password}
               onChange={e => setFormData({...formData, password: e.target.value})}
             />
-            <button type="submit" className="auth-btn">
-              {isLogin ? 'Sign In' : 'Sign Up'}
+            <button type="submit" className="auth-btn" disabled={loading}>
+              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
             </button>
           </form>
 
-          <p className="auth-switch">
-            {isLogin ? "New to FilmBox?" : "Already have an account?"} 
-            <span onClick={() => setIsLogin(!isLogin)}>
-              {isLogin ? ' Sign up now.' : ' Sign in.'}
+          <div className="auth-footer">
+            <span className="gray-text">{isLogin ? "New to FilmBox?" : "Already have an account?"} </span>
+            <span className="auth-link" onClick={() => setIsLogin(!isLogin)}>
+              {isLogin ? 'Sign up now.' : 'Sign in.'}
             </span>
-          </p>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// --- 4. MAIN APP LOGIC ---
+// --- 4. MAIN APP ---
 function MainApp() {
   const [search, setSearch] = useState(""); 
   const [selectedMovie, setSelectedMovie] = useState(null);
+  const [playingMovie, setPlayingMovie] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handlePlay = (movie) => {
+    setPlayingMovie(movie);
+    setSelectedMovie(null); // Close details if open
+  };
 
   return (
     <>
       <Navbar search={search} setSearch={setSearch} isScrolled={isScrolled} />
       
       <main>
-        {search.length < 3 ? (
-          <HomeView onSelect={setSelectedMovie} />
+        {search.length > 2 ? (
+          <SearchResults search={search} onSelect={setSelectedMovie} onPlay={handlePlay} />
         ) : (
-          <SearchResults search={search} onSelect={setSelectedMovie} />
+          <HomeView onSelect={setSelectedMovie} onPlay={handlePlay} />
         )}
       </main>
 
+      {/* MODALS */}
       <AnimatePresence>
         {selectedMovie && (
-          <MovieDetails movie={selectedMovie} onClose={() => setSelectedMovie(null)} />
+          <MovieDetails 
+            movie={selectedMovie} 
+            onClose={() => setSelectedMovie(null)} 
+            onPlay={() => handlePlay(selectedMovie)}
+          />
+        )}
+        {playingMovie && (
+            <VideoPlayer movie={playingMovie} onClose={() => setPlayingMovie(null)} />
         )}
       </AnimatePresence>
 
-      <ScrollToTop />
       <Footer />
     </>
   );
 }
 
-// --- 5. SCROLL TO TOP COMPONENT ---
-function ScrollToTop() {
-  const [visible, setVisible] = useState(false);
+// --- 5. VIDEO PLAYER COMPONENT (NEW) ---
+function VideoPlayer({ movie, onClose }) {
+    // Uses YouTube Embed in "Search" mode to find the trailer automatically
+    const query = encodeURIComponent(`${movie["#AKA"]} ${movie["#YEAR"]} trailer`);
+    const embedUrl = `https://www.youtube.com/embed?listType=search&list=${query}&autoplay=1&controls=1&modestbranding=1&rel=0`;
 
-  useEffect(() => {
-    const toggle = () => setVisible(window.scrollY > 400);
-    window.addEventListener('scroll', toggle);
-    return () => window.removeEventListener('scroll', toggle);
-  }, []);
-
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-
-  return (
-    <div className={`scroll-top ${visible ? 'show' : ''}`} onClick={scrollToTop}>
-      <FaArrowUp />
-    </div>
-  );
+    return (
+        <motion.div 
+            className="video-player-overlay"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        >
+            <div className="video-header">
+                <h3>Now Playing: {movie["#AKA"]}</h3>
+                <button onClick={onClose}><FaTimes /></button>
+            </div>
+            <div className="iframe-container">
+                <iframe 
+                    src={embedUrl} 
+                    title="Video Player"
+                    frameBorder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowFullScreen
+                ></iframe>
+            </div>
+        </motion.div>
+    );
 }
 
-// --- EXISTING COMPONENTS (Refined) ---
+// --- 6. VIEW COMPONENTS ---
 
 function Navbar({ search, setSearch, isScrolled }) {
   const { user, logout } = useContext(AuthContext);
   const [showDropdown, setShowDropdown] = useState(false);
 
   return (
-    <nav className={`navbar-new ${isScrolled ? 'scrolled' : ''}`}>
-      <div className="nav-content">
-        <div className="nav-left">
-          <div className="brand" onClick={() => setSearch("")}><FaFilm /> FILMBOX</div>
-          <ul className="nav-menu">
-            <li onClick={() => setSearch("")}>Home</li>
-            <li>Movies</li>
-            <li>TV Shows</li>
+    <nav className={`navbar ${isScrolled ? 'scrolled' : ''}`}>
+      <div className="nav-left">
+        <div className="brand" onClick={() => setSearch("")}><span className="red-text">FILM</span>BOX</div>
+        <ul className="nav-menu">
+            <li className="active">Home</li>
+            <li>Series</li>
+            <li>Films</li>
+            <li>New & Popular</li>
             <li>My List</li>
-          </ul>
-        </div>
+        </ul>
+      </div>
 
-        <div className="nav-right">
-          <div className="search-box">
-            <FaSearch className="search-icon" />
-            <input 
-              type="text" placeholder="Search..." 
-              value={search} onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          
-          <div className="nav-user-menu" onMouseEnter={() => setShowDropdown(true)} onMouseLeave={() => setShowDropdown(false)}>
-            <div className="profile-avatar">
-              <img src={`https://ui-avatars.com/api/?name=${user.name}&background=E50914&color=fff`} alt="User" />
+      <div className="nav-right">
+        <div className={`search-box ${search ? 'active' : ''}`}>
+          <FaSearch className="search-icon" />
+          <input 
+            type="text" placeholder="Titles, people, genres" 
+            value={search} onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && <FaTimes className="clear-icon" onClick={() => setSearch('')} />}
+        </div>
+        
+        <div className="nav-item"><FaBell /></div>
+        
+        <div className="nav-user" onMouseEnter={() => setShowDropdown(true)} onMouseLeave={() => setShowDropdown(false)}>
+          <img src={`https://ui-avatars.com/api/?name=${user.name}&background=E50914&color=fff&rounded=true`} alt="User" />
+          <span className="caret">▼</span>
+          {showDropdown && (
+            <div className="user-dropdown">
+              <div className="dropdown-item">Profile</div>
+              <div className="dropdown-item">Manage Profiles</div>
+              <div className="dropdown-divider"></div>
+              <div className="dropdown-item" onClick={logout}>Sign out of FilmBox</div>
             </div>
-            {showDropdown && (
-              <div className="user-dropdown">
-                <div className="dropdown-item"><FaUser /> {user.name}</div>
-                <div className="dropdown-item" onClick={logout}><FaSignOutAlt /> Sign out</div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </nav>
   );
 }
 
-function HomeView({ onSelect }) {
+function HomeView({ onSelect, onPlay }) {
   return (
     <>
-      <HeroSlider query="2026 Blockbuster" onSelect={onSelect} />
-      <div className="content-rows">
-        <RankingCarousel query="Trending" onSelect={onSelect} />
-        <MovieCarousel title="New Releases" query="2025" onSelect={onSelect} />
-        <MovieCarousel title="Action & Adventure" query="Action" onSelect={onSelect} />
+      <HeroSlider query="Dune" onSelect={onSelect} onPlay={onPlay} />
+      <div className="content-rows-container">
+        <RankingCarousel query="Marvel" onSelect={onSelect} />
+        <MovieCarousel title="Trending Now" query="2024" onSelect={onSelect} />
+        <MovieCarousel title="Action Thrillers" query="Action" onSelect={onSelect} />
+        <MovieCarousel title="Sci-Fi Worlds" query="Space" onSelect={onSelect} />
+        <MovieCarousel title="Comedy Hits" query="Comedy" onSelect={onSelect} />
       </div>
     </>
   );
 }
 
-function MovieDetails({ movie, onClose }) {
-  const { user } = useContext(AuthContext);
+function HeroSlider({ query, onSelect, onPlay }) {
+  const [movie, setMovie] = useState(null);
 
-  const toggleMyList = () => {
-    // Basic implementation of Local Storage persistence for "My List"
-    let updatedList = [...(user.myList || [])];
-    const exists = updatedList.find(m => m["#IMDB_ID"] === movie["#IMDB_ID"]);
-    
-    if (exists) updatedList = updatedList.filter(m => m["#IMDB_ID"] !== movie["#IMDB_ID"]);
-    else updatedList.push(movie);
-    
-    // Update local storage via AuthService
-    AuthService.saveUserList(user.email, updatedList);
-    alert(exists ? "Removed from My List" : "Added to My List");
+  useEffect(() => {
+    fetch(API_URL + query).then(res => res.json()).then(data => {
+        if(data.description && data.description.length > 0) setMovie(data.description[0]);
+    });
+  }, [query]);
+
+  if (!movie) return <div className="hero-skeleton" />;
+
+  return (
+    <div className="hero-container">
+      <div className="hero-bg">
+        <img src={movie["#IMG_POSTER"]} alt="Hero" />
+        <div className="hero-vignette"></div>
+      </div>
+      <div className="hero-content">
+        <h1 className="hero-title">{movie["#AKA"]}</h1>
+        <p className="hero-desc">
+            Ranked #{movie["#RANK"]} • {movie["#YEAR"]} • {movie["#ACTORS"]}
+        </p>
+        <div className="hero-buttons">
+          <button className="btn btn-play" onClick={() => onPlay(movie)}><FaPlay /> Play</button>
+          <button className="btn btn-info" onClick={() => onSelect(movie)}><FaInfoCircle /> More Info</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MovieDetails({ movie, onClose, onPlay }) {
+  const { user, updateUserList } = useContext(AuthContext);
+  
+  const inList = user.myList.some(m => m["#IMDB_ID"] === movie["#IMDB_ID"]);
+
+  const toggleList = () => {
+    let newList = [...user.myList];
+    if (inList) newList = newList.filter(m => m["#IMDB_ID"] !== movie["#IMDB_ID"]);
+    else newList.push(movie);
+    updateUserList(newList);
   };
 
   return (
-    <motion.div 
-      className="details-backdrop"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      onClick={onClose}
-    >
-      <motion.div 
-        className="details-window"
-        initial={{ y: 100, opacity: 0, scale: 0.9 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        exit={{ y: 100, opacity: 0, scale: 0.9 }}
-        onClick={e => e.stopPropagation()}
-      >
-        <button className="close-details" onClick={onClose}><FaTimes /></button>
-        <div className="details-hero">
-          <img src={movie["#IMG_POSTER"]} alt="banner" className="details-bg" />
-          <div className="details-hero-overlay">
-            <h1>{movie["#AKA"]}</h1>
-            <div className="details-meta-row">
-              <span className="rating-badge"><FaStar /> {movie["#RANK"]}</span>
-              <span>{movie["#YEAR"]}</span>
-              <span className="hd-badge">4K</span>
+    <motion.div className="modal-backdrop" onClick={onClose} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
+      <motion.div className="modal-content" onClick={e => e.stopPropagation()} initial={{y: 50, opacity:0}} animate={{y:0, opacity:1}}>
+        <div className="modal-close" onClick={onClose}><FaTimes /></div>
+        
+        <div className="modal-hero">
+            <img src={movie["#IMG_POSTER"]} alt="cover" />
+            <div className="modal-overlay">
+                <h2>{movie["#AKA"]}</h2>
+                <div className="modal-actions">
+                    <button className="btn btn-play" onClick={onPlay}><FaPlay /> Play</button>
+                    <button className="circle-btn" onClick={toggleList}>
+                        {inList ? <FaCheck /> : <FaPlus />}
+                    </button>
+                </div>
             </div>
-            <div className="details-actions">
-              <button className="play-btn-large"><FaPlay /> Play</button>
-              <button className="circ-action" onClick={toggleMyList}><FaPlus /></button>
-            </div>
-          </div>
         </div>
-        <div className="details-body">
-          <p className="plot-summary">
-            {movie["#AKA"]} ({movie["#YEAR"]}) is currently ranked #{movie["#RANK"]}.
-            An incredible cinematic experience featuring {movie["#ACTORS"]}.
-          </p>
+        
+        <div className="modal-body">
+            <div className="modal-left">
+                <div className="meta-row">
+                    <span className="match-score">98% Match</span>
+                    <span className="year">{movie["#YEAR"]}</span>
+                    <span className="badge-hd">HD</span>
+                </div>
+                <p className="synopsis">
+                    This critically acclaimed film features {movie["#ACTORS"]}. 
+                    Ranked #{movie["#RANK"]} on IMDb. A cinematic masterpiece that defines the genre.
+                </p>
+            </div>
+            <div className="modal-right">
+                <p><span>Cast:</span> {movie["#ACTORS"]}</p>
+                <p><span>Genres:</span> Action, Adventure, Drama</p>
+            </div>
         </div>
       </motion.div>
     </motion.div>
   );
 }
 
-function RankingCarousel({ query, onSelect }) {
+function MovieCarousel({ title, query, onSelect }) {
   const [movies, setMovies] = useState([]);
+  
   useEffect(() => {
-    fetch(API_URL + query).then(res => res.json()).then(data => setMovies(data.description.slice(0, 10)));
+    fetch(API_URL + query).then(res => res.json()).then(data => setMovies(data.description || []));
   }, [query]);
 
   return (
-    <div className="carousel-row">
-      <h3 className="row-title">Top 10 Today</h3>
-      <div className="carousel-track">
+    <div className="row">
+      <h3>{title}</h3>
+      <div className="row-posters">
         {movies.map((m, i) => (
-          <div key={i} className="ranking-card-wrapper" onClick={() => onSelect(m)}>
-            <div className="ranking-number">{i + 1}</div>
-            <div className="m-card"><img src={m["#IMG_POSTER"]} alt="poster" /></div>
+          <div key={i} className="poster-card" onClick={() => onSelect(m)}>
+            <img src={m["#IMG_POSTER"]} alt={m["#AKA"]} loading="lazy" />
           </div>
         ))}
       </div>
@@ -322,86 +388,61 @@ function RankingCarousel({ query, onSelect }) {
   );
 }
 
-function MovieCarousel({ title, query, onSelect }) {
-  const [movies, setMovies] = useState([]);
-  useEffect(() => {
-    fetch(API_URL + query).then(res => res.json()).then(data => setMovies(data.description || []));
-  }, [query]);
-
-  return (
-    <div className="carousel-row">
-      <h3 className="row-title">{title}</h3>
-      <div className="carousel-track">
-        {movies.length === 0 
-          ? [...Array(6)].map((_, i) => <div key={i} className="skeleton card-skeleton" />)
-          : movies.map((m, i) => <MovieCard key={i} movie={m} onSelect={() => onSelect(m)} />)
-        }
-      </div>
-    </div>
-  );
-}
-
-function HeroSlider({ query, onSelect }) {
-  const [movies, setMovies] = useState([]);
-  useEffect(() => {
-    fetch(API_URL + query).then(res => res.json()).then(data => setMovies(data.description.slice(0, 5)));
-  }, [query]);
-
-  if (!movies.length) return <div className="skeleton hero-skeleton" />;
-  const active = movies[0];
-
-  return (
-    <div className="hero-wrap">
-      <img src={active["#IMG_POSTER"]} className="hero-image" alt="bg" />
-      <div className="hero-overlay">
-        <div className="hero-text">
-          <h1>{active["#AKA"]}</h1>
-          <div className="hero-btns">
-            <button className="play-btn" onClick={() => onSelect(active)}><FaPlay /> Play</button>
-            <button className="list-btn"><FaPlus /> My List</button>
-          </div>
+function RankingCarousel({ query, onSelect }) {
+    const [movies, setMovies] = useState([]);
+    useEffect(() => {
+      fetch(API_URL + query).then(res => res.json()).then(data => setMovies(data.description || []));
+    }, [query]);
+  
+    return (
+      <div className="row">
+        <h3>Top 10 Today</h3>
+        <div className="row-posters rank-row">
+          {movies.slice(0, 10).map((m, i) => (
+            <div key={i} className="rank-card" onClick={() => onSelect(m)}>
+               <span className="rank-number">{i+1}</span>
+               <img src={m["#IMG_POSTER"]} alt={m["#AKA"]} />
+            </div>
+          ))}
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-function MovieCard({ movie, onSelect }) {
-  return (
-    <div className="m-card" onClick={onSelect}>
-      <img src={movie["#IMG_POSTER"]} alt="poster" loading="lazy" />
-      <div className="m-info">
-        <h4>{movie["#AKA"]}</h4>
-        <p>{movie["#YEAR"]}</p>
-      </div>
-    </div>
-  );
-}
-
-function SearchResults({ search, onSelect }) {
+function SearchResults({ search, onSelect, onPlay }) {
   const [movies, setMovies] = useState([]);
   useEffect(() => {
     fetch(API_URL + search).then(res => res.json()).then(data => setMovies(data.description || []));
   }, [search]);
 
   return (
-    <div className="search-section">
-      <h2 className="search-heading">Results for "{search}"</h2>
-      <div className="search-grid">
-        {movies.map((m, i) => <MovieCard key={i} movie={m} onSelect={() => onSelect(m)} />)}
-      </div>
+    <div className="search-results-container">
+      {movies.map((m, i) => (
+        <div key={i} className="search-card">
+           <img src={m["#IMG_POSTER"]} alt="" onClick={() => onSelect(m)} />
+           <div className="search-overlay">
+               <h4>{m["#AKA"]}</h4>
+               <button onClick={() => onPlay(m)}><FaPlay /></button>
+           </div>
+        </div>
+      ))}
     </div>
   );
 }
 
 function Footer() {
-  return (
-    <footer className="footer-new">
-      <div className="f-top">
-        <div className="f-logo"><FaFilm /> FILMBOX</div>
-        <div className="f-social"><FaFacebook /><FaTwitter /><FaInstagram /><FaYoutube /></div>
-      </div>
-      <p>&copy; 2026 FilmBox Inc.</p>
-    </footer>
-  );
+    return (
+        <div className="footer">
+            <div className="socials"><FaFacebook /><FaInstagram /><FaTwitter /><FaYoutube /></div>
+            <div className="links">
+                <span>Audio Description</span>
+                <span>Help Center</span>
+                <span>Gift Cards</span>
+                <span>Media Center</span>
+                <span>Terms of Use</span>
+                <span>Privacy</span>
+            </div>
+            <div className="copyright">© 2026 FilmBox, Inc.</div>
+        </div>
+    )
 }
